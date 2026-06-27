@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+
+<!-- Hace que funcione bien en celulares -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>El Desahogo - Libro Digital</title>
@@ -35,17 +37,20 @@ h1 {
   color: #d4af37;
 }
 
+/* Tamaño del libro en computadora */
 #book {
   width: 900px;
   height: 620px;
   margin: auto;
 }
 
+/* Cada página del libro */
 .page {
   background: white;
   overflow: hidden;
 }
 
+/* Página del PDF dibujada */
 .page canvas {
   width: 100%;
   height: 100%;
@@ -58,10 +63,19 @@ h1 {
   color: #ddd;
 }
 
+/* Ajuste para celular */
 @media (max-width: 768px) {
+  body {
+    align-items: flex-start;
+  }
+
+  #contenedor {
+    padding: 10px;
+  }
+
   #book {
-    width: 320px;
-    height: 480px;
+    width: 95vw;
+    height: 70vh;
   }
 
   h1 {
@@ -75,37 +89,59 @@ h1 {
 
 <div id="contenedor">
   <h1>El Desahogo</h1>
+
+  <!-- Aquí aparece el libro -->
   <div id="book"></div>
+
+  <!-- Estado del libro -->
   <div id="info">Cargando PDF...</div>
 </div>
 
+<!-- PDF.js: lee el PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<!-- PageFlip: efecto de libro -->
 <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 
 <script>
-/* Nombre del libro */
-const nombreLibro = "El Desahogo";
+/* =========================================================
+   RUTA DEL PDF
 
-/* Ruta del PDF dentro del repositorio */
-const url = encodeURI(`pdf/${nombreLibro}.pdf`);
+   Estructura recomendada:
+   proyecto/
+   ├── index.html
+   └── pdf/
+       └── el-desahogo.pdf
+========================================================= */
+const url = "pdf/el-desahogo.pdf";
 
+/* =========================================================
+   WORKER DE PDF.JS
+========================================================= */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
+/* =========================================================
+   ELEMENTOS PRINCIPALES
+========================================================= */
 const bookContainer = document.getElementById("book");
 const info = document.getElementById("info");
 
 let pageFlip = null;
 
+/* Detecta celular */
 function esCelular() {
   return window.innerWidth <= 768;
 }
 
+/* =========================================================
+   CREA UNA PÁGINA DEL PDF
+========================================================= */
 async function crearPaginaPDF(pdf, numeroPagina) {
   const page = await pdf.getPage(numeroPagina);
 
   const viewport = page.getViewport({
-    scale: esCelular() ? 1.4 : 1.7
+    scale: esCelular() ? 1.3 : 1.7
   });
 
   const canvas = document.createElement("canvas");
@@ -126,6 +162,9 @@ async function crearPaginaPDF(pdf, numeroPagina) {
   return pageDiv;
 }
 
+/* =========================================================
+   CARGA EL PDF Y CONSTRUYE EL LIBRO
+========================================================= */
 async function cargarPDF() {
   try {
     const pdf = await pdfjsLib.getDocument(url).promise;
@@ -142,22 +181,50 @@ async function cargarPDF() {
       width: esCelular() ? 320 : 450,
       height: esCelular() ? 480 : 620,
 
-      size: "fixed",
+      /*
+        En PC usamos fixed para que no brinque la portada.
+        En celular usamos stretch para que se adapte a la pantalla.
+      */
+      size: esCelular() ? "stretch" : "fixed",
 
+      minWidth: 260,
+      maxWidth: 1000,
+      minHeight: 360,
+      maxHeight: 1400,
+
+      /*
+        La página 1 del PDF queda como portada.
+        Al abrir: páginas 2 y 3 juntas.
+      */
       showCover: true,
+
+      /*
+        En celular muestra una página a la vez.
+        En PC muestra libro abierto.
+      */
       usePortrait: esCelular(),
-      mobileScrollSupport: true,
+
+      /*
+        false ayuda a que el gesto del dedo funcione mejor
+        para pasar hojas en móvil.
+      */
+      mobileScrollSupport: false,
 
       startPage: 0,
       flippingTime: 1200,
       drawShadow: true,
       maxShadowOpacity: 0.28,
-      autoSize: false,
+
+      /*
+        En celular sí se autoajusta.
+        En PC no, para evitar desplazamiento raro.
+      */
+      autoSize: esCelular() ? true : false,
 
       startZIndex: 10,
       clickEventForward: true,
       useMouseEvents: true,
-      swipeDistance: 30
+      swipeDistance: 20
     });
 
     const paginas = Array.from(document.querySelectorAll(".page"));
@@ -182,10 +249,12 @@ async function cargarPDF() {
   } catch (error) {
     console.error(error);
     info.textContent = "No se pudo cargar el PDF.";
-    alert("No se pudo cargar el PDF. Revisa que esté en la carpeta pdf del repositorio.");
+
+    alert("No se pudo cargar el PDF. Revisa que el archivo exista en: pdf/el-desahogo.pdf");
   }
 }
 
+/* Inicia el programa */
 cargarPDF();
 </script>
 
