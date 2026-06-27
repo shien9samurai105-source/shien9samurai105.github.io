@@ -2,25 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-
-<!-- Permite que se adapte a celulares -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>El Desahogo - Libro Digital</title>
 
 <style>
-/* =========================================================
-   AJUSTE GENERAL
-   box-sizing ayuda a que los tamaños sean más controlables
-========================================================= */
 * {
   box-sizing: border-box;
 }
 
-/* =========================================================
-   CUERPO DE LA PÁGINA
-   Aquí se define el fondo y se centra el libro
-========================================================= */
 body {
   margin: 0;
   min-height: 100vh;
@@ -32,9 +22,6 @@ body {
   overflow: auto;
 }
 
-/* =========================================================
-   CONTENEDOR PRINCIPAL
-========================================================= */
 #contenedor {
   width: 100%;
   text-align: center;
@@ -42,53 +29,35 @@ body {
   padding: 15px;
 }
 
-/* =========================================================
-   TÍTULO SUPERIOR
-========================================================= */
 h1 {
   margin: 10px 0 15px;
   font-size: clamp(22px, 5vw, 38px);
   color: #d4af37;
 }
 
-/* =========================================================
-   CONTENEDOR DEL LIBRO
-========================================================= */
 #book {
   width: 900px;
   height: 620px;
   margin: auto;
 }
 
-/* =========================================================
-   CADA HOJA DEL LIBRO
-========================================================= */
 .page {
   background: white;
   overflow: hidden;
 }
 
-/* =========================================================
-   CANVAS DONDE SE DIBUJA CADA PÁGINA DEL PDF
-========================================================= */
 .page canvas {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-/* =========================================================
-   TEXTO INFORMATIVO INFERIOR
-========================================================= */
 #info {
   margin-top: 15px;
   font-size: 15px;
   color: #ddd;
 }
 
-/* =========================================================
-   AJUSTE PARA CELULAR
-========================================================= */
 @media (max-width: 768px) {
   #book {
     width: 320px;
@@ -105,215 +74,118 @@ h1 {
 <body>
 
 <div id="contenedor">
-
-  <!-- Título visible arriba -->
   <h1>El Desahogo</h1>
-
-  <!-- Aquí se construye el libro automáticamente -->
   <div id="book"></div>
-
-  <!-- Texto que indica la página actual -->
-  <div id="info"></div>
-
+  <div id="info">Cargando PDF...</div>
 </div>
 
-<!-- Librería PDF.js: lee y renderiza el PDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-
-<!-- Librería PageFlip: crea el efecto de libro -->
 <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 
 <script>
-/* =========================================================
-   NOMBRE DEL ARCHIVO PDF
+/* Nombre del libro */
+const nombreLibro = "El Desahogo";
 
-   El archivo "El Desahogo.pdf" debe estar en la misma
-   carpeta que este archivo index.html
-========================================================= */
-const url = encodeURI("El Desahogo.pdf");
+/* Ruta del PDF dentro del repositorio */
+const url = encodeURI(`pdf/${nombreLibro}.pdf`);
 
-/* =========================================================
-   CONFIGURACIÓN DEL WORKER DE PDF.JS
-
-   El worker permite procesar el PDF sin congelar la página.
-========================================================= */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-/* =========================================================
-   REFERENCIAS A ELEMENTOS HTML
-========================================================= */
 const bookContainer = document.getElementById("book");
 const info = document.getElementById("info");
 
-/* =========================================================
-   VARIABLE DONDE SE GUARDA EL LIBRO INTERACTIVO
-========================================================= */
 let pageFlip = null;
 
-/* =========================================================
-   DETECTAR SI ESTAMOS EN CELULAR
-========================================================= */
 function esCelular() {
   return window.innerWidth <= 768;
 }
 
-/* =========================================================
-   CREAR UNA PÁGINA DEL PDF
-
-   Esta función:
-   1. Toma una página del PDF.
-   2. La dibuja en un canvas.
-   3. Mete ese canvas dentro de una hoja del libro.
-========================================================= */
 async function crearPaginaPDF(pdf, numeroPagina) {
-
-  // Obtiene la página del PDF
   const page = await pdf.getPage(numeroPagina);
 
-  // Define la calidad con la que se renderiza
   const viewport = page.getViewport({
     scale: esCelular() ? 1.4 : 1.7
   });
 
-  // Crea el canvas
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // Ajusta el tamaño real del canvas
   canvas.width = viewport.width;
   canvas.height = viewport.height;
 
-  // Dibuja la página del PDF en el canvas
   await page.render({
     canvasContext: ctx,
     viewport: viewport
   }).promise;
 
-  // Crea una hoja para PageFlip
   const pageDiv = document.createElement("div");
   pageDiv.className = "page";
-
-  // Inserta el canvas dentro de la hoja
   pageDiv.appendChild(canvas);
 
-  // Regresa la hoja ya lista
   return pageDiv;
 }
 
-/* =========================================================
-   FUNCIÓN PRINCIPAL
-
-   Aquí se carga el PDF y se construye el libro.
-========================================================= */
 async function cargarPDF() {
   try {
-
-    // Carga el PDF
     const pdf = await pdfjsLib.getDocument(url).promise;
 
-   
-
-    // Limpia el contenedor antes de crear el libro
+    info.textContent = "Preparando libro...";
     bookContainer.innerHTML = "";
 
-    /*
-      ORDEN DEL LIBRO:
-
-      PDF página 1 = portada sola
-
-      Al abrir la portada:
-      PDF página 2 y PDF página 3 aparecen juntas
-
-      Luego:
-      PDF página 4 y PDF página 5 juntas
-      PDF página 6 y PDF página 7 juntas
-    */
-
     for (let i = 1; i <= pdf.numPages; i++) {
-
-      // Crea la hoja a partir de la página del PDF
       const pagina = await crearPaginaPDF(pdf, i);
-
-      // Agrega la hoja al libro
       bookContainer.appendChild(pagina);
     }
 
-    /* =====================================================
-       CONFIGURACIÓN DEL EFECTO LIBRO
-    ===================================================== */
     pageFlip = new St.PageFlip(bookContainer, {
-
-      // Tamaño del libro en computadora o celular
       width: esCelular() ? 320 : 450,
       height: esCelular() ? 480 : 620,
 
-      // "fixed" evita que el libro se mueva raro al abrir
       size: "fixed",
 
-      // Primera página como portada sola
       showCover: true,
-
-      // En celular muestra una sola página
       usePortrait: esCelular(),
-
-      // Permite deslizar con el dedo en celular
       mobileScrollSupport: true,
 
-      // Empieza desde la portada
       startPage: 0,
-
-      // Duración de la animación de hoja
       flippingTime: 1200,
-
-      // Activa sombras al pasar página
       drawShadow: true,
-
-      // Intensidad de las sombras
       maxShadowOpacity: 0.28,
-
-      // Evita reacomodos raros durante la animación
       autoSize: false,
 
-      // Control de capas visuales
       startZIndex: 10,
-
-      // Permite pasar página haciendo clic
       clickEventForward: true,
-
-      // Permite usar mouse
       useMouseEvents: true,
-
-      // Distancia mínima para detectar swipe
       swipeDistance: 30
     });
 
-    // Carga todas las hojas creadas dentro de PageFlip
     const paginas = Array.from(document.querySelectorAll(".page"));
     pageFlip.loadFromHTML(paginas);
 
-    // Refresca el libro después de cargar
     setTimeout(() => {
       pageFlip.update();
     }, 300);
 
-    /* =====================================================
-       EVENTO AL PASAR PÁGINA
-    ===================================================== */
-   
+    info.textContent = "Portada";
+
+    pageFlip.on("flip", (e) => {
+      const paginaActual = e.data + 1;
+
+      if (paginaActual === 1) {
+        info.textContent = "Portada";
+      } else {
+        info.textContent = `Página ${paginaActual}`;
+      }
+    });
 
   } catch (error) {
-
     console.error(error);
     info.textContent = "No se pudo cargar el PDF.";
-
-    alert("No se pudo cargar el PDF. Revisa que esté en la misma carpeta y que abras con localhost.");
+    alert("No se pudo cargar el PDF. Revisa que esté en la carpeta pdf del repositorio.");
   }
 }
 
-/* =========================================================
-   INICIAR EL PROGRAMA
-========================================================= */
 cargarPDF();
 </script>
 
